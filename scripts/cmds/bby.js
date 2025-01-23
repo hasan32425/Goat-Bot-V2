@@ -145,7 +145,7 @@ module.exports.onChat = async ({ api, event,message }) => {
     const body = event.body ? event.body.toLowerCase() : ""
     if(body.startsWith("baby") || body.startsWith("bby") || body.startsWith("bot") || body.startsWith("hii")){
       const arr = body.replace(/^\S+\s*/, "")
-      if(!arr){ api.sendMessage("~Kire bolod amare koitechos nki? 🐸", "~Ami hasan er bby tur na!🥳", "~Ki bolbi taratari ko ami chipay amar owner er loghe kortechi 😫🥲", "~Hea jan bolo🥳", event.threadID, (error, info) => {
+      if(!arr){ api.sendMessage("~Kire bolod amare koitechos nki? 🐸", event.threadID, (error, info) => {
       global.GoatBot.onReply.set(info.messageID, {
         commandName: this.config.name,
         type: "reply",
