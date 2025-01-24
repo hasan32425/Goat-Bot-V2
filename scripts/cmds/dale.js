@@ -1,4 +1,4 @@
-/cmd install dale.js const models = [
+const models = [
   'DreamShaper',
   'MBBXL_Ultimate',
   'Mysterious',
