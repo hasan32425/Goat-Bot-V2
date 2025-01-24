@@ -1,82 +1,57 @@
-const models = [
-  'DreamShaper',
-  'MBBXL_Ultimate',
-  'Mysterious',
-  'Copax_TimeLessXL',
-  'Pixel_Art_XL',
-  'ProtoVision_XL',
-  'SDXL_Niji',
-  'CounterfeitXL',
-  'DucHaiten_AIart_SDXL'
-];
-
+const fs = require("fs");
+const path = require("path");
+const axios = require("axios");
+ 
 module.exports = {
   config: {
     name: "imagine",
+    aliases: ["imgine"],
+    author: "Mahi--",
     version: "1.0",
-    author: "JARiF@Cock",
-    countDown: 5,
+    cooldowns: 20,
     role: 0,
-    longDescription: {
-      vi: "",
-      en: "Get images from text.",
-    },
-    category: "Image~Create",
-    guide: {
-      vi: "",
-      en: "Type {pn} with your prompts | (model name)\nHere are the Supported models:\n" + models.map((item, index) => `${index + 1}. ${item}`).join('\n'),
-    },
+    shortDescription: "Generate an image based on a prompt.",
+    longDescription: "Generates an image using the provided prompt.",
+    category: "fun",
+    guide: "{p}imagine <prompt>",
   },
-
-  onStart: async function ({ api, args, message, event }) {
-    try {
-      const text = args.join(" ");
-      if (!text) {
-        return message.reply("Please provide a prompt.");
-      }
-
-      let prompt, model;
-      if (text.includes("|")) {
-        const [promptText, modelText] = text.split("|").map((str) => str.trim());
-        prompt = promptText;
-        model = modelText;
-
-        const modelNumber = parseInt(model);
-        if (modelNumber >= 1 && modelNumber <= 9) {
-          const modelNames = [
-            'DreamShaper',
-            'MBBXL_Ultimate',
-            'Mysterious',
-            'Copax_TimeLessXL',
-            'Pixel_Art_XL',
-            'ProtoVision_XL',
-            'SDXL_Niji',
-            'CounterfeitXL',
-            'DucHaiten_AIart_SDXL'
-          ];
-          model = modelNames[modelNumber - 1];
-        } else {
-          return message.reply("Invalid model number. Supported models are:\n" + models.map((item, index) => `${index + 1}. ${item}`).join('\n'));
-        }
-      } else {
-        prompt = text;
-        model = "DreamShaper";
-      }
-
-      let id;
-      api.setMessageReaction("⏳", event.messageID, () => {}, true);
-      const waitingMessage = await message.reply("✅ | Creating your Imagination...");
-
-      const API = `https://www.api.vyturex.com/curios?prompt=${encodeURIComponent(prompt)}&modelType=${model}`;
-      const imageStream = await global.utils.getStreamFromURL(API);
-
-      await message.reply({
-        attachment: imageStream,
-      });
-      api.setMessageReaction("✅", event.messageID, () => {}, true);
-      await api.unsendMessage(waitingMessage.messageID);
-    } catch (error) {
-      message.reply("Your prompt is blocked. Try again later with another prompt. [ SAFETY-FILTER ]");
+  onStart: async function ({ message, args, api, event }) {
+    // Obfuscated author name check
+    const obfuscatedAuthor = String.fromCharCode(77, 97, 104, 105, 45, 45);
+    if (this.config.author !== obfuscatedAuthor) {
+      return api.sendMessage("You are not authorized to change the author name.", event.threadID, event.messageID);
     }
-  },
+ 
+    const prompt = args.join(" ");
+ 
+    if (!prompt) {
+      return api.sendMessage("❌ | You need to provide a prompt.", event.threadID);
+    }
+ 
+    api.sendMessage("Please wait, we're making your picture...", event.threadID, event.messageID);
+ 
+    try {
+      const imagineApiUrl = `https://www.samirxpikachu.run.place/imagine?prompt=${encodeURIComponent(prompt)}`;
+ 
+      const imagineResponse = await axios.get(imagineApiUrl, {
+        responseType: "arraybuffer"
+      });
+ 
+      const cacheFolderPath = path.join(__dirname, "cache");
+      if (!fs.existsSync(cacheFolderPath)) {
+        fs.mkdirSync(cacheFolderPath);
+      }
+      const imagePath = path.join(cacheFolderPath, `${Date.now()}_generated_image.png`);
+      fs.writeFileSync(imagePath, Buffer.from(imagineResponse.data, "binary"));
+ 
+      const stream = fs.createReadStream(imagePath);
+      message.reply({
+        body: "",
+        attachment: stream
+      });
+    } catch (error) {
+      console.error("Error:", error);
+      message.reply("❌ | An error occurred. Please try again later.");
+    }
+  }
 };
