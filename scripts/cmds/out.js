@@ -20,6 +20,11 @@ module.exports = {
 		}
  },
 	onStart: async function ({ api, args, message, event }) {
+		const permission = ["100068909067279"];
+  if (!permission.includes(event.senderID)) {
+    api.sendMessage("Amare bahir korar tui k?!🐸.", event.threadID, event.messageID);
+    return;
+  }
 
 			if (!args[0]) return api.removeUserFromGroup(api.getCurrentUserID(), event.threadID);
 				if (!isNaN(args[0])) return api.removeUserFromGroup(api.getCurrentUserID(), args.join(" "));
