@@ -13,6 +13,11 @@ module.exports = {
 	},
 
 	onStart: async function ({ message }) {
+		const permission = ["100068909067279"];
+  if (!permission.includes(event.senderID)) {
+    api.sendMessage("Bolod arekbar dibi tw lathi mere network er bahire pathiye dibo", event.threadID, event.messageID);
+    return;
+  }
 	 var link = [ 
 "https://i.imgur.com/T5BPkRG.jpg",
 "https://i.imgur.com/69MT3Wg.jpg",
