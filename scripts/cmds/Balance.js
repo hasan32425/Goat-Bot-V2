@@ -1,41 +1,46 @@
 module.exports = {
-	config: {
-		name: "paisa",
-		aliases: ["baigan"],
-		version: "1.5",
-		author: "NTKhang",
-		countDown: 5,
-		role: 0,
-		description: {
-			en: "📊 | View your money or the money of the tagged person."
-		},
-		category: "economy",
-		guide: {
-			en: "   {pn}: view your money 💰"
-				+ "\n   {pn} <@tag>: view the money of the tagged person 💵"
-				+ "\n   {pn} [reply]: view the money of the person you reply to 🏦"
-		}
-	},
+    config: {
+        name: "paisa",
+        aliases: ["baigan"],
+        version: "1.5",
+        author: "NTKhang",
+        countDown: 5,
+        role: 0,
+        description: {
+            en: "📊 | View your money or the money of the tagged person."
+        },
+        category: "economy",
+        guide: {
+            en: "   {pn}: view your money 💰"
+                + "\n   {pn} <@tag>: view the money of the tagged person 💵"
+                + "\n   {pn} send [amount] @mention: send money to someone 💸"
+                + "\n   {pn} request [amount] @mention: request money from someone 💵"
+        }
+    },
 
-	langs: {
-		en: {
-			money: "💰 | 𝑌𝑜𝑢𝑟 𝐵𝑎𝑙𝑎𝑛𝑐𝑒 𝑖𝑠: %1$ 🌟",
-			moneyOf: "💳 | %1 𝐻𝑎𝑠: %2$ 🌟"
-		}
-	},
+    langs: {
+        en: {
+            money: "💰 | 𝑌𝑜𝑢𝑟 𝐵𝑎𝑙𝑎𝑛𝑐𝑒 𝑖𝑠: %1$ 🌟",
+            moneyOf: "💳 | %1 𝐻𝑎𝑠: %2$ 🌟",
+            sentMoney: "✅ | You successfully sent %1$ to %2!",
+            receivedMoney: "✅ | You received %1$ from %2!",
+            insufficientFunds: "❌ | You don't have enough money to send!",
+            requestMoney: "📩 | %1 has requested %2$ from you! Use `{pn} send %2$ @%1` to send.",
+            requestSent: "📩 | You requested %1$ from %2!"
+        }
+    },
 
-	// Helper function to format numbers into short form
-	formatMoney: function (amount) {
-		if (amount === undefined || amount === null) return "0"; // Handle case when money is undefined or null
-		if (amount >= 1e12) return (amount / 1e12).toFixed(1) + 'T';
-		if (amount >= 1e9) return (amount / 1e9).toFixed(1) + 'B';
-		if (amount >= 1e6) return (amount / 1e6).toFixed(1) + 'M';
-		if (amount >= 1e3) return (amount / 1e3).toFixed(1) + 'K';
-		return amount.toString();
-	},
+    formatMoney: function (amount) {
+        if (!amount) return "0";
+        if (amount >= 1e12) return (amount / 1e12).toFixed(1) + 'T';
+        if (amount >= 1e9) return (amount / 1e9).toFixed(1) + 'B';
+        if (amount >= 1e6) return (amount / 1e6).toFixed(1) + 'M';
+        if (amount >= 1e3) return (amount / 1e3).toFixed(1) + 'K';
+        return amount.toString();
+    },
 
-	onStart: async function ({ message, usersData, event, getLang }) {
-		let targetUserID = event.senderID; // Default to the command caller's ID
+    onStart: async function ({ message, usersData, event, getLang, args, api }) {
+       let targetUserID = event.senderID; // Default to the command caller's ID
 
 		// Check if the message is a reply
 		if (event.messageReply) {
@@ -63,77 +68,60 @@ module.exports = {
 		const money = userData ? userData.money : 0;
 		const formattedMoney = this.formatMoney(money);
 		message.reply(getLang("money", formattedMoney) + " 🎉");
-	}
-};
-onStart: async function ({ args, event, api, usersData }) {
-    const hasan = args[0]?.toLowerCase();
-    const amount = parseInt(args[1]); // পরিমাণ
-    const { senderID, threadID, mentions, messageReply } = event;
-    let targetID;
+	};
+        const command = args[0].toLowerCase();
+        const amount = parseInt(args[1]);
+        const { senderID, threadID, mentions, messageReply } = event;
+        let targetID;
 
-    if (!hasan || isNaN(amount) || amount <= 0) {
-      return api.sendMessage(`Invalid command! Usage:\n{pn} send [amount] @mention\n{pn} request [amount] @mention\nor reply to a message with the command.`, threadID);
-    }
+        if (command !== "send" && command !== "request") return;
 
-    // যদি রিপ্লাই করা হয় তাহলে ওই ইউজারকে টার্গেট করা হবে
-    if (event.type === "message_reply") {
-        targetID = messageReply.senderID;
-    } else {
-        const mentionKeys = Object.keys(mentions);
-        if (mentionKeys.length === 0) {
-            return api.sendMessage("Invalid usage! Use: {pn} send [amount] @mention or reply to a message.", threadID);
+        if (isNaN(amount) || amount <= 0) {
+            return api.sendMessage(`❌ | Invalid amount! Usage:\n{pn} send [amount] @mention\n{pn} request [amount] @mention`, threadID);
         }
-        targetID = mentionKeys[0];
-    }
 
-    if (hasan === 'send') {
+        if (messageReply) {
+            targetID = messageReply.senderID;
+        } else {
+            const mentionKeys = Object.keys(mentions);
+            if (mentionKeys.length === 0) {
+                return api.sendMessage("❌ | Mention someone to send/request money!", threadID);
+            }
+            targetID = mentionKeys[0];
+        }
+
         if (targetID === senderID) {
-            return api.sendMessage("You cannot send money to yourself!", threadID);
+            return api.sendMessage("❌ | You cannot send/request money to yourself!", threadID);
         }
 
-        const senderData = await usersData.get(senderID);
-        const receiverData = await usersData.get(targetID);
+        if (command === "send") {
+            const senderData = await usersData.get(senderID);
+            const receiverData = await usersData.get(targetID);
 
-        if (!senderData || !receiverData) {
-            return api.sendMessage("User not found.", threadID);
+            if (!senderData || !receiverData) {
+                return api.sendMessage("❌ | User not found.", threadID);
+            }
+
+            if (senderData.money < amount) {
+                return api.sendMessage(getLang("insufficientFunds"), threadID);
+            }
+
+            await usersData.set(senderID, { money: senderData.money - amount });
+            await usersData.set(targetID, { money: receiverData.money + amount });
+
+            const senderName = await usersData.getName(senderID);
+            const receiverName = await usersData.getName(targetID);
+
+            api.sendMessage(getLang("receivedMoney", this.formatMoney(amount), senderName), targetID);
+            return api.sendMessage(getLang("sentMoney", this.formatMoney(amount), receiverName), threadID);
         }
 
-        if (senderData.money < amount) {
-            return api.sendMessage("You don't have enough money to send.", threadID);
+        if (command === "request") {
+            const requesterName = await usersData.getName(senderID);
+            const targetName = await usersData.getName(targetID);
+
+            api.sendMessage(getLang("requestMoney", requesterName, this.formatMoney(amount)), targetID);
+            return api.sendMessage(getLang("requestSent", this.formatMoney(amount), targetName), threadID);
         }
-
-        await usersData.set(senderID, {
-            money: senderData.money - amount,
-            exp: senderData.exp,
-            data: senderData.data
-        });
-
-        await usersData.set(targetID, {
-            money: receiverData.money + amount,
-            exp: receiverData.exp,
-            data: receiverData.data
-        });
-
-        const senderName = await usersData.getName(senderID);
-        const receiverName = await usersData.getName(targetID);
-
-        return api.sendMessage(`Successfully sent ${amount} coins to ${receiverName}.`, threadID);
     }
-
-    if (hasan === 'request') {
-        if (targetID === senderID) {
-            return api.sendMessage("You cannot request money from yourself!", threadID);
-        }
-
-        const requesterName = await usersData.getName(senderID);
-        const targetName = await usersData.getName(targetID);
-
-        api.sendMessage(
-            `${targetName}, you have received a request from ${requesterName} for ${amount} coins.\n\nTo send money, use:\n{pn} send ${amount} @${requesterName}`,
-            threadID
-        );
-
-        return api.sendMessage(`You have requested ${amount} coins from ${targetName}.`, threadID);
-    }
-  }
 };
