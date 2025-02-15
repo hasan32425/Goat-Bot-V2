@@ -1,13 +1,13 @@
 module.exports = {
     config: {
-        name: "paisa",
-        aliases: ["baigan"],
+        name: "balance",
+        aliases: ["bal", "tk"],
         version: "1.5",
-        author: "NTKhang",
+        author: "♡︎ 𝐻𝐴𝑆𝐴𝑁 ♡︎",
         countDown: 5,
         role: 0,
         description: {
-            en: "📊 | View your money or the money of the tagged person."
+            en: "📊 | View your money or the money of the tagged person.And send or request for money"
         },
         category: "economy",
         guide: {
@@ -15,18 +15,6 @@ module.exports = {
                 + "\n   {pn} <@tag>: view the money of the tagged person 💵"
                 + "\n   {pn} send [amount] @mention: send money to someone 💸"
                 + "\n   {pn} request [amount] @mention: request money from someone 💵"
-        }
-    },
-
-    langs: {
-        en: {
-            money: "💰 | 𝑌𝑜𝑢𝑟 𝐵𝑎𝑙𝑎𝑛𝑐𝑒 𝑖𝑠: %1$ 🌟",
-            moneyOf: "💳 | %1 𝐻𝑎𝑠: %2$ 🌟",
-            sentMoney: "✅ | You successfully sent %1$ to %2!",
-            receivedMoney: "✅ | You received %1$ from %2!",
-            insufficientFunds: "❌ | You don't have enough money to send!",
-            requestMoney: "📩 | %1 has requested %2$ from you! Use `{pn} send %2$ @%1` to send.",
-            requestSent: "📩 | You requested %1$ from %2!"
         }
     },
 
@@ -39,32 +27,36 @@ module.exports = {
         return amount.toString();
     },
 
-    onStart: async function ({ message, usersData, event, getLang, args, api }) {
+    onStart: async function ({ message, usersData, event, args, api }) {
         let targetUserID = event.senderID;
+        let isSelfCheck = true;
 
         if (event.messageReply) {
             targetUserID = event.messageReply.senderID;
+            isSelfCheck = false;
         } 
         else if (event.mentions && Object.keys(event.mentions).length > 0) {
-            let mentionedUsers = Object.keys(event.mentions);
-            targetUserID = mentionedUsers[0]; // প্রথম মেনশন করা ইউজারকে ধরবে
+            targetUserID = Object.keys(event.mentions)[0];
+            isSelfCheck = false;
+        }
+
+        if (args.length > 0 && (args[0] === "send" || args[0] === "request")) {
+            return await this.handleTransaction({ message, usersData, event, args, api });
         }
 
         const userData = await usersData.get(targetUserID);
         const money = userData?.money || 0;
-        
-        if (!args[0]) {
-            return message.reply(`💰 তোমার বর্তমান ব্যালেন্স: ${money} টকা! 🤑`);
-        } 
-        else if (args[0].toLowerCase() === "send" || args[0].toLowerCase() === "request") {
-            return this.handleTransaction({ message, usersData, event, getLang, args, api });
+        const formattedMoney = this.formatMoney(money);
+
+        if (isSelfCheck) {
+            return message.reply(`💰 𝑌𝑜𝑢𝑟 𝐵𝑎𝑙𝑎𝑛𝑐𝑒 𝑖𝑠 ${formattedMoney} $ !? 🤑`);
         } 
         else {
-            return message.reply(`👀 ${userData?.name || "ব্যবহারকারী"}-এর ব্যালেন্স: ${money} টকা! 💸`);
+            return message.reply(`💳 𝑩𝑨𝑳𝑨𝑵𝑪𝑬 𝑰𝑵𝑭𝑶𝑹𝑴𝑨𝑻𝑰𝑶𝑵 💳\n💵💰 ${userData?.name || "𝑈𝑠𝑒𝑟"} 𝐻𝑎𝑠 ${formattedMoney} $ !? 💸\n💫 𝐻𝑎𝑣𝑒 𝑎 𝑔𝑜𝑜𝑑 𝑑𝑎𝑦 💫`);
         }
     },
 
-    handleTransaction: async function ({ message, usersData, event, getLang, args, api }) {
+    handleTransaction: async function ({ message, usersData, event, args, api }) {
         const command = args[0].toLowerCase();
         const amount = parseInt(args[1]);
         const { senderID, threadID, mentions, messageReply } = event;
@@ -84,7 +76,7 @@ module.exports = {
             targetID = mentionKeys[0];
         }
 
-        if (targetID === senderID) {
+        if (!targetID || targetID === senderID) {
             return api.sendMessage("❌ | You cannot send/request money to yourself!", threadID);
         }
 
@@ -97,7 +89,7 @@ module.exports = {
             }
 
             if (senderData.money < amount) {
-                return api.sendMessage(getLang("insufficientFunds"), threadID);
+                return api.sendMessage("❌ | You don't have enough money!", threadID);
             }
 
             await usersData.set(senderID, { ...senderData, money: senderData.money - amount });
@@ -106,16 +98,16 @@ module.exports = {
             const senderName = await usersData.getName(senderID);
             const receiverName = await usersData.getName(targetID);
 
-            api.sendMessage(getLang("receivedMoney", this.formatMoney(amount), senderName), targetID);
-            return api.sendMessage(getLang("sentMoney", this.formatMoney(amount), receiverName), threadID);
+            api.sendMessage(`✅ | ${senderName} Send you ${this.formatMoney(amount)} $ ! 💸`, targetID);
+            return api.sendMessage(`✅ | You successfully send ${this.formatMoney(amount)} $ To ${receiverName}`, threadID);
         }
 
         if (command === "request") {
             const requesterName = await usersData.getName(senderID);
             const targetName = await usersData.getName(targetID);
 
-            api.sendMessage(getLang("requestMoney", requesterName, this.formatMoney(amount)), targetID);
-            return api.sendMessage(getLang("requestSent", this.formatMoney(amount), targetName), threadID);
+            api.sendMessage(`📩 | ${requesterName} তোমার কাছ থেকে ${this.formatMoney(amount)} টাকা চাইছে! 💵\nপাঠাতে "{pn} send ${amount} @${requesterName}" ব্যবহার করো।`, targetID);
+            return api.sendMessage(`📩 | তুমি ${targetName}-এর কাছে ${this.formatMoney(amount)} টাকা চেয়েছো!`, threadID);
         }
     }
 };
