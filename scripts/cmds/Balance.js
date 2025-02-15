@@ -40,41 +40,35 @@ module.exports = {
     },
 
     onStart: async function ({ message, usersData, event, getLang, args, api }) {
-       let targetUserID = event.senderID; // Default to the command caller's ID
+        let targetUserID = event.senderID;
 
-		// Check if the message is a reply
-		if (event.messageReply) {
-			targetUserID = event.messageReply.senderID;
-		}
+        if (event.messageReply) {
+            targetUserID = event.messageReply.senderID;
+        } 
+        else if (event.mentions && Object.keys(event.mentions).length > 0) {
+            let mentionedUsers = Object.keys(event.mentions);
+            targetUserID = mentionedUsers[0]; // প্রথম মেনশন করা ইউজারকে ধরবে
+        }
 
-		// Check if the message mentions someone
-		if (Object.keys(event.mentions).length > 0) {
-			const uids = Object.keys(event.mentions);
-			let msg = "📝 | 𝐇𝐞𝐫𝐞'𝐬 𝐘𝐨𝐮𝐫 𝐁𝐚𝐥𝐚𝐧𝐜𝐞 𝐈𝐧𝐟𝐨:\n\n";
-			for (const uid of uids) {
-				const userMoney = await usersData.get(uid, "money");
+        const userData = await usersData.get(targetUserID);
+        const money = userData?.money || 0;
+        
+        if (!args[0]) {
+            return message.reply(`💰 তোমার বর্তমান ব্যালেন্স: ${money} টকা! 🤑`);
+        } 
+        else if (args[0].toLowerCase() === "send" || args[0].toLowerCase() === "request") {
+            return this.handleTransaction({ message, usersData, event, getLang, args, api });
+        } 
+        else {
+            return message.reply(`👀 ${userData?.name || "ব্যবহারকারী"}-এর ব্যালেন্স: ${money} টকা! 💸`);
+        }
+    },
 
-				// If no money found for the user, handle it
-				const formattedMoney = this.formatMoney(userMoney || 0);
-				msg += `💳 | ${event.mentions[uid].replace("@", "")}: ${formattedMoney} 💵\n`;
-			}
-			return message.reply(msg.trim() + "\n✨ | 𝐇𝐚𝐯𝐞 𝐚 𝐠𝐨𝐨𝐝 𝐝𝐚𝐲 !");
-		}
-
-		// Get money of the person who replied or the sender
-		const userData = await usersData.get(targetUserID);
-
-		// If userData is undefined or money is not defined, handle it
-		const money = userData ? userData.money : 0;
-		const formattedMoney = this.formatMoney(money);
-		message.reply(getLang("money", formattedMoney) + " 🎉");
-	};
+    handleTransaction: async function ({ message, usersData, event, getLang, args, api }) {
         const command = args[0].toLowerCase();
         const amount = parseInt(args[1]);
         const { senderID, threadID, mentions, messageReply } = event;
         let targetID;
-
-        if (command !== "send" && command !== "request") return;
 
         if (isNaN(amount) || amount <= 0) {
             return api.sendMessage(`❌ | Invalid amount! Usage:\n{pn} send [amount] @mention\n{pn} request [amount] @mention`, threadID);
@@ -106,8 +100,8 @@ module.exports = {
                 return api.sendMessage(getLang("insufficientFunds"), threadID);
             }
 
-            await usersData.set(senderID, { money: senderData.money - amount });
-            await usersData.set(targetID, { money: receiverData.money + amount });
+            await usersData.set(senderID, { ...senderData, money: senderData.money - amount });
+            await usersData.set(targetID, { ...receiverData, money: receiverData.money + amount });
 
             const senderName = await usersData.getName(senderID);
             const receiverName = await usersData.getName(targetID);
