@@ -103,11 +103,26 @@ module.exports = {
         }
 
         if (command === "request") {
-            const requesterName = await usersData.getName(senderID);
-            const targetName = await usersData.getName(targetID);
+    const ownerID = "123456789"; // 🔹 Owner-এর Facebook ID  
+    const ownerGroupID = "987654321"; // 🔹 Owner-এর নির্দিষ্ট Group ID  
 
-            api.sendMessage(`📩 | ${requesterName} তোমার কাছ থেকে ${this.formatMoney(amount)} টাকা চাইছে! 💵\nপাঠাতে "{pn} send ${amount} @${requesterName}" ব্যবহার করো।`, targetID);
-            return api.sendMessage(`📩 | তুমি ${targetName}-এর কাছে ${this.formatMoney(amount)} টাকা চেয়েছো!`, threadID);
+    const requesterName = await usersData.getName(senderID);
+    const requestMessage = `📩 | ${requesterName} তোমার কাছ থেকে ${this.formatMoney(amount)} $ চাইছে! 💵\n✅ পাঠাতে: "{pn} send ${amount} @${requesterName}" ব্যবহার করো।`;
+
+    api.sendMessage(requestMessage, ownerID, (err) => {
+        if (err) {
+            // 🔹 যদি Inbox-এ না যায়, তাহলে Group Chat-এ পাঠানো হবে  
+            api.sendMessage(requestMessage, ownerGroupID, (err2) => {
+                if (!err2) {
+                    api.sendMessage(`✅ | তোমার রিকোয়েস্ট Owner-এর Group Thread-এ পাঠানো হয়েছে! ✅`, senderID);
+                } else {
+                    api.sendMessage(`❌ | দুঃখিত, Owner-এর কাছে তোমার রিকোয়েস্ট পাঠানো যায়নি! 😞`, senderID);
+                }
+            });
+        } else {
+            api.sendMessage(`✅ | তোমার রিকোয়েস্ট Owner-এর কাছে পাঠানো হয়েছে! ✅`, senderID);
+               }
+           });
         }
     }
 };
